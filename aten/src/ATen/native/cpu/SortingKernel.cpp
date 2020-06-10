@@ -73,7 +73,7 @@ void _dim_apply(
 template <typename scalar_t>
 struct KeyValueCompAsc {
   template <typename LHS, typename RHS>
-  bool operator()(LHS lhs, RHS rhs) {
+  constexpr bool operator()(LHS lhs, RHS rhs) const {
     return (!_isnan<scalar_t>(get<0>(lhs)) && _isnan<scalar_t>(get<0>(rhs)))
       || (get<0>(lhs) < get<0>(rhs));
   }
@@ -82,7 +82,7 @@ struct KeyValueCompAsc {
 template <typename scalar_t>
 struct KeyValueCompDesc {
   template <typename LHS, typename RHS>
-  bool operator()(LHS lhs, RHS rhs) {
+  constexpr bool operator()(LHS lhs, RHS rhs) const {
     return (_isnan<scalar_t>(get<0>(lhs)) && !_isnan<scalar_t>(get<0>(rhs)))
       || (get<0>(lhs) > get<0>(rhs));
   }
