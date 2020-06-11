@@ -111,12 +111,14 @@ inline Tensor as_view(const Tensor & base, Tensor tensor, bool is_differentiable
   auto base_var = Variable(base);
   if (base_var.is_view()) {
     // Set `view_func` using the root base as input.
-    // `view_func` is used to recover views in backward when as_strided is not supported.
+    // `view_func` is used to recover views in backward when either as_strided is not supported
+    // or the view function changes the metadata which is not recorded by as_strided
     // See Note [View + Inplace update on base tensor] and [View + Inplace update on view tensor]
     // for more details how we use this function in backward.
+    auto diff_view_meta = static_cast<DifferentiableViewMeta*>(torch::autograd::impl::get_autograd_meta(base_var));
     if (view_func.has_value()) {
       auto fn = view_func.value();
-      auto diff_view_meta = static_cast<DifferentiableViewMeta*>(torch::autograd::impl::get_autograd_meta(base_var));
+      // both current_view and it's parent have a view_func
       if (diff_view_meta->has_view_fn()) {
         auto prev_fn = diff_view_meta->view_fn();
         view_func = [=](const at::Tensor& root_base) {
@@ -124,20 +126,41 @@ inline Tensor as_view(const Tensor & base, Tensor tensor, bool is_differentiable
           return fn(temp);
         };
       } else {
-        // When base_var is a view but doesn't carry a view_fn in DifferentiableViewMeta, it's
-        // a view that doesn't support inplace update, e.g. unbind.
-        // In this case we should throw an error when inplace update happens in **forward**.
-        // One would naturally think the following function will be first called in backward pass.
-        // But the first call site is indeed in **forward** pass when we refresh `grad_fn`
-        // triggered by inplace update.
-        // Search Note [View + Inplace update for view tensor] to for the call site.
-        view_func = [=](const at::Tensor& root_base) {
-          TORCH_CHECK(false, "This view is the output of a function that returns multiple views."
-                  "Such functions do not allow the output views to be modified inplace."
-                  "You should replace the inplace operation by an out-of-place one");
-          return root_base;
-        };
+        // current_view has a view_func and but it's parent doesn't have one
+        if(base_var.unsafeGetTensorImpl()->support_as_strided()) {
+          view_func = [=](const at::Tensor& root_base) {
+            auto sizes = root_base.sizes();
+            auto strides = root_base.strides();
+            auto storage_offset = root_base.storage_offset();
+            auto temp = root_base.as_strided(sizes, strides, storage_offset);
+            return fn(temp);
+          };
+        } else {
+          // When base_var is a view but doesn't carry a view_fn in DifferentiableViewMeta, it's
+          // a view that doesn't support inplace update, e.g. unbind.
+          // In this case we should throw an error when inplace update happens in **forward**.
+          // One would naturally think the following function will be first called in backward pass.
+          // But the first call site is indeed in **forward** pass when we refresh `grad_fn`
+          // triggered by inplace update.
+          // Search Note [View + Inplace update for view tensor] to for the call site.
+          view_func = [=](const at::Tensor& root_base) {
+            TORCH_CHECK(false, "This view is the output of a function that returns multiple views."
+                    "Such functions do not allow the output views to be modified inplace."
+                    "You should replace the inplace operation by an out-of-place one");
+            return root_base;
+          };
+        }
       }
+    } else if(diff_view_meta->has_view_fn()) {
+      // if current_view doesn't have a view_func but it's parent has one
+      auto prev_view_fn = diff_view_meta->view_fn();
+      view_func = [=](const at::Tensor& root_base) {
+        auto temp = prev_view_fn(root_base);
+        auto sizes = temp.sizes();
+        auto strides = temp.strides();
+        auto storage_offset = temp.storage_offset();
+        return temp.as_strided(sizes, strides, storage_offset);
+      };
     }
     base_var = base_var._base();
   }

@@ -1502,6 +1502,30 @@ class TestAutograd(TestCase):
         gradcheck(func, [x])
         gradgradcheck(func, [x])
 
+    def test_complex_views(self):
+        x = torch.randn(10, dtype=torch.cdouble, requires_grad=True)
+        x.real.sum().backward()
+        self.assertEqual(x.grad, torch.ones_like(x))
+
+        y = torch.randn(10, dtype=torch.cdouble, requires_grad=True)
+        y.imag.sum().backward()
+        self.assertEqual(y.grad, -1j * torch.ones_like(y))
+
+        def func(z):
+            z_ = torch.view_as_complex(z)
+            z_select = torch.select(z_, z_.dim() - 1, 0)
+            z_select_real = torch.view_as_real(z_select)
+            return z_select_real.sum()
+
+        z = torch.randn(10, 2, 2, dtype=torch.double, requires_grad=True)
+        gradcheck(func, [z])
+
+        z1 = z.clone().detach().requires_grad_(True)
+        torch.select(z1, z1.dim() - 2, 0).sum().backward()
+
+        func(z).backward()
+        self.assertEqual(z.grad, z1.grad)
+
     def test_stack(self):
         x = torch.randn(10, 10, requires_grad=True)
         y = torch.randn(10, 10, requires_grad=True)
