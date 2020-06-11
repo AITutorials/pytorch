@@ -2,11 +2,18 @@
 
 #include <ATen/native/CompositeRandomAccessorCommon.h>
 
+#include <thrust/tuple.h>
+
 namespace at { namespace native {
 
 struct TupleInfoCUDA {
   template <typename ...Types>
   using tuple = thrust::tuple<Types...>;
+
+  template <typename ...Types>
+  static constexpr auto tie(Types&... args) noexcept {
+    return thrust::tie(args...);
+  }
 };
 
 template <typename KeyAccessor, typename ValueAccessor>

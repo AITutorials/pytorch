@@ -7,6 +7,11 @@ namespace at { namespace native {
 struct TupleInfoCPU {
   template <typename ...Types>
   using tuple = std::tuple<Types...>;
+
+  template <typename ...Types>
+  static constexpr auto tie(Types&... args) noexcept {
+    return std::tie(args...);
+  }
 };
 
 template <typename KeyAccessor, typename ValueAccessor>

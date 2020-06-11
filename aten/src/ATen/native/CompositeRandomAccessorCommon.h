@@ -104,7 +104,7 @@ public:
   // Pointer-like operations {
   C10_HOST_DEVICE
   reference operator*() {
-    return std::tie(*keys, *values);
+    return TupleInfo::tie(*keys, *values);
   }
 
   C10_HOST_DEVICE
