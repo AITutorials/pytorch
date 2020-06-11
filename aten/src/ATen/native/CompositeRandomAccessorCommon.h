@@ -69,10 +69,9 @@ private:
   Accessor accessor;
 };
 
-template <typename KeyAccessor, typename ValueAccessor,
-          template <typename...> class Tuple>
+template <typename KeyAccessor, typename ValueAccessor, typename TupleInfo>
 class CompositeRandomAccessor {
-  using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor, Tuple>;
+  using self_type = CompositeRandomAccessor<KeyAccessor, ValueAccessor, TupleInfo>;
 
   using key_accessor_value_type =
     typename std::iterator_traits<KeyAccessor>::value_type;
@@ -83,10 +82,10 @@ class CompositeRandomAccessor {
   using value_accessor_reference_type =
     typename std::iterator_traits<ValueAccessor>::reference;
 
-  using composite_value_type = Tuple<
+  using composite_value_type = typename TupleInfo::template tuple<
     key_accessor_value_type,
     value_accessor_value_type>;
-  using composite_reference = Tuple<
+  using composite_reference = typename TupleInfo::template tuple<
     key_accessor_reference_type,
     value_accessor_reference_type>;
 

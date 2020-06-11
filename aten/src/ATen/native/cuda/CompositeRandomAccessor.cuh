@@ -4,9 +4,14 @@
 
 namespace at { namespace native {
 
+struct TupleInfoCUDA {
+  template <typename ...Types>
+  using tuple = thrust::tuple<Types...>;
+};
+
 template <typename KeyAccessor, typename ValueAccessor>
 using CompositeRandomAccessorCUDA =
-  CompositeRandomAccessor<KeyAccessor, ValueAccessor, thrust::tuple>;
+  CompositeRandomAccessor<KeyAccessor, ValueAccessor, TupleInfoCUDA>;
 
 template <typename Values, typename References>
 void swap(

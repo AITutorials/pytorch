@@ -4,9 +4,14 @@
 
 namespace at { namespace native {
 
+struct TupleInfoCPU {
+  template <typename ...Types>
+  using tuple = std::tuple<Types...>;
+};
+
 template <typename KeyAccessor, typename ValueAccessor>
 using CompositeRandomAccessorCPU =
-  CompositeRandomAccessor<KeyAccessor, ValueAccessor, std::tuple>;
+  CompositeRandomAccessor<KeyAccessor, ValueAccessor, TupleInfoCPU>;
 
 template <typename Values, typename References>
 void swap(
